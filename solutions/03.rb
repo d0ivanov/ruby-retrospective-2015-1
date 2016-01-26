@@ -3,23 +3,28 @@ class RationalSequence
 
   def initialize(limit)
     @limit = limit
-    @count = 0
   end
 
-  def each
-    slice = 1
-    while @count != @limit
-      rationals_slice(slice) do |rational|
-        yield rational
-        @count += 1
-      end
-      slice += 1
-    end
+  def each(&block)
+    enum_for(:next_rational)
+      .lazy
+      .take(@limit)
+      .each(&block)
   end
 
   private
 
-  def rationals_slice(slice)
+  def next_rational
+    i = 1
+    loop do
+      rationals(i) { |rational| yield rational }
+      i += 1
+    end
+  end
+
+  def rationals(slice)
+    numerator, denominator = 1, 1
+
     slice.downto(1) do |n|
       numerator, denominator = slice - (n - 1), n
       if numerator.gcd(denominator) == 1 and slice.odd?
@@ -27,7 +32,6 @@ class RationalSequence
       elsif numerator.gcd(denominator) == 1
         yield Rational(denominator, numerator)
       end
-      return if @count == @limit
     end
   end
 end
@@ -39,18 +43,22 @@ class PrimeSequence
     @limit = limit
   end
 
-  def each
-    prime_count = 0
-    (1..Float::INFINITY).each do |number|
-      if is_prime? number
-        prime_count += 1
-        yield number
-      end
-      return if prime_count == @limit
-    end
+  def each(&block)
+    enum_for(:primes)
+      .lazy
+      .take(@limit)
+      .each(&block)
   end
 
   private
+
+  def primes
+    prime = 2
+    loop do
+      yield prime if is_prime?(prime)
+      prime += 1
+    end
+  end
 
   def is_prime? number
     return false if number <= 1
@@ -66,54 +74,57 @@ class FibonacciSequence
     @limit, @first, @second = limit, first, second
   end
 
-  def each
-    (1..@limit).each {|n| yield fibonacci(n)}
+  def each(&block)
+    enum_for(:fibonacci)
+      .lazy
+      .take(@limit)
+      .each(&block)
   end
 
   private
 
-  def fibonacci(n)
-    return @first if n == 1
-    return @second if n == 2
+  def fibonacci
+    a, b = @first, @second
 
-    fibonacci(n - 1) + fibonacci(n - 2)
+    yield a
+    yield b
+
+    loop do
+      yield a + b
+      a, b = b, a + b
+    end
   end
 end
 
 module DrunkenMathematician
-  module_function
-
-  def meaningless(n)
+  def self.meaningless(n)
     rationals = RationalSequence.new(n).to_a
 
-    group_one = rationals.select do |rational|
-      is_prime? rational.numerator or is_prime? rational.denominator
-    end
-    group_two = rationals.select do |rational|
-      not is_prime? rational.numerator and not is_prime? rational.denominator
+    group_one, group_two = rationals.partition do |r|
+      is_prime?(r.numerator) || is_prime?(r.denominator)
     end
 
     group_one.reduce(1, :*) / group_two.reduce(1, :*)
   end
 
-  def aimless(n)
+  def self.aimless(n)
     primes = PrimeSequence.new(n).to_a
-    primes.each_slice(2).to_a.map { |slice| Rational(*slice) }.reduce(0, :+)
+    primes.each_slice(2).to_a.map { |slice| Rational(*slice) }.reduce(:+)
   end
 
-  def worthless(n)
-    fibonacci_number = FibonacciSequence.new(n).to_a.last
-    rationals_slice = []
+  def self.worthless(n)
+    limit = FibonacciSequence.new(n).to_a.last
+    sum = 0
 
-    RationalSequence.new(Float::INFINITY).each do |rational|
-      rationals_slice.push rational
-      if rationals_slice.reduce(:+) > fibonacci_number
-        return rationals_slice[0...rationals_slice.size - 1]
-      end
+    RationalSequence.new(limit ** 2).take_while do |rational|
+      sum += rational
+      sum <= limit
     end
   end
 
-  def is_prime? number
+  private
+
+  def self.is_prime? number
     return false if number <= 1
     Math.sqrt(number).to_i.downto(2).each { |i| return false if number % i == 0 }
     true

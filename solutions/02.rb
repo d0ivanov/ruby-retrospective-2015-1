@@ -1,38 +1,39 @@
-def sum_arrays(a, b)
-  a.map.with_index {|element, i| element + b[i]}
-end
-
 def cells(width, height)
-  cell_count = [width, height].max
-  cells = [*0..cell_count].repeated_permutation(2).to_a
-  cells.reject {|cell| cell[0] >= width or cell[1] >= height}
+  columns = (0...dimensions[:width]).to_a
+  rows = (0...dimensions[:height]).to_a
+
+  columns.product(rows)
 end
 
 def move(snake, direction)
-  new_snake = snake + [sum_arrays(snake.last, direction)]
-  new_snake.shift
-  new_snake
+  grow(snake, direction).drop(1)
 end
 
 def grow(snake, direction)
-  snake + [sum_arrays(snake.last, direction)]
+  body_part = [snake.last[0] + direction[0], snake.last[1] + direction[1]]
+  snake + [body_part]
 end
 
 def new_food(food, snake, dimensions)
-  (cells(dimensions[:width], dimensions[:height]) - snake - food).sample
+  (cells(*dimensions.values) - snake - food).sample
 end
 
 def obstacle_ahead?(snake, direction, dimensions)
-  snake = move(snake, direction)
-  cells = cells(dimensions[:width], dimensions[:height])
+  cell_ahead = grow(snake, direction).last
 
-  snake.count(snake.last) > 1 or !cells.include?(snake.last)
+  (is_wall?(cell_ahead, dimensions) || is_body_part?(cell_ahead, snake))
 end
 
 def danger?(snake, direction, dimensions)
-  moved_snake_a = move(snake, direction)
-  moved_snake_b = move(moved_snake_a, direction)
+  obstacle_ahead?(snake, direction, dimensions) or
+    obstacle_ahead?(move(snake, direction), direction, dimensions)
+end
 
-  obstacle_ahead?(moved_snake_a, direction, dimensions) or
-    obstacle_ahead?(moved_snake_b, direction, dimensions)
+def is_wall?(position, dimensions)
+  x, y = position
+  x < 0 or x >= dimensions[:width] or y < 0 or y >= dimensions[:height]
+end
+
+def is_body_part?(position, snake)
+  snake.include?(position)
 end

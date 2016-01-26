@@ -6,3 +6,4 @@ end
 def compare_prices(price_a, currency_a, price_b, currency_b)
   convert_to_bgn(price_a, currency_a) <=> convert_to_bgn(price_b, currency_b)
 end
+
